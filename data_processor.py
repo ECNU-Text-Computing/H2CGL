@@ -22,7 +22,7 @@ from torchtext.vocab import build_vocab_from_iterator, Vectors, vocab
 
 from our_models.TSGCN import get_paper_ego_subgraph
 from utilis.scripts import get_configs, IndexDict, add_new_elements
-from utilis.bertwhitening_utils import input_to_vec, compute_kernel_bias, transform_and_normalize, inputs_to_vec
+# from utilis.bertwhitening_utils import input_to_vec, compute_kernel_bias, transform_and_normalize, inputs_to_vec
 import networkx as nx
 import pickle as pkl
 # tokenizer = get_tokenizer('basic_english')
@@ -372,91 +372,84 @@ class DataProcessor:
         return emb_batch, values_list, length_list, \
                mask_list, ids_list, time_list, None
 
-    def get_embs(self, tokenizer_type, tokenizer_path, name='graph_sample_feature', mode='vector',
-                 split_abstract=False):
-        print(name)
-        print(tokenizer_path)
-        print('graph mode:', mode)
-        # graph = torch.load(self.data_cat_path + 'graph_sample')
-        node_trans = json.load(open(self.data_cat_path + 'sample_node_trans.json', 'r'))
-        paper_trans = node_trans['paper']
-        node_ids = list(paper_trans.values())
-        node_ids.sort()
-        print(len(node_ids))
-        index_trans = dict(zip(paper_trans.values(), paper_trans.keys()))
-
-        if not split_abstract:
-            info_dict = json.load(open(self.data_cat_path + 'sample_info_dict.json', 'r'))
-            abstracts = list(map(lambda x: info_dict[index_trans[x]]['abstract'].strip(), node_ids))
-            del info_dict
-        else:
-            abs_dict = json.load(open(self.data_cat_path + 'sample_abstract_dict.json', 'r'))
-            abstracts = list(map(lambda x: abs_dict[index_trans[x]].strip(), node_ids))
-            del abs_dict
-
-        feature_list = []
-
-        self.tokenizer = self.get_tokenizer(tokenizer_type, tokenizer_path)
-        self.tokenizer.load_vocab()
-        print('bert-whitening embeddings')
-        # self.tokenizer = CustomBertTokenizer(max_len=self.max_len, bert_path=tokenizer_path)
-        # self.tokenizer.load_vocab()
-        print(self.tokenizer.tokenizer)
-
-        if mode == 'bw':
-            bert_model = BertModel.from_pretrained(tokenizer_path, return_dict=True, output_hidden_states=True).to(
-                self.device)
-        elif mode in ['sbw', 'sbert']:
-            bert_model = SentenceTransformer(tokenizer_path)
-
-        # first get kernel and bias
-        # params = {'kernel': 0, 'bias': 0}
-        all_embs = []
-
-        # for abstract in tqdm(abstracts[:100]):
-        #     processed_content, seq_len, mask = self.tokenizer.encode(abstract)
-        #     tokens = torch.tensor(processed_content).unsqueeze(dim=0).to(self.device)
-        #     mask = torch.tensor(mask).unsqueeze(dim=0).to(self.device)
-        #     # output = bert_model(tokens, attention_mask=mask)
-        #     output = input_to_vec([tokens, mask], bert_model, 'first_last_avg', seq_len)
-        #     all_embs.append(output)
-        batch_size = 64
-        if mode == 'bw':
-            count = 0
-            temp_tokens, temp_masks, temp_lens = [], [], []
-            for abstract in tqdm(abstracts):
-                processed_content, seq_len, mask = self.tokenizer.encode(abstract)
-                temp_tokens.append(processed_content)
-                temp_masks.append(mask)
-                temp_lens.append(seq_len)
-                count += 1
-                if ((count > 0) and (count % batch_size == 0)) | (count == len(abstracts)):
-                    tokens = torch.tensor(temp_tokens, dtype=torch.long).to(self.device)
-                    masks = torch.tensor(temp_masks, dtype=torch.long).to(self.device)
-                    seq_lens = temp_lens
-                    output = inputs_to_vec([tokens, masks], bert_model, 'first_last_avg', seq_lens)
-                    # print(output.shape)
-                    all_embs.append(output)
-                    temp_tokens, temp_masks, temp_lens = [], [], []
-        elif mode in ['sbw', 'sbert']:
-            count = 0
-            all_embs = []
-            temp_list = []
-            for abstract in tqdm(abstracts):
-                # print(abstract)
-                temp_list.append(abstract)
-                count += 1
-                if ((count > 0) and (count % batch_size == 0)) | (count == len(abstracts)):
-                    output = bert_model.encode(temp_list)
-                    # print(output.shape)
-                    all_embs.append(output)
-                    temp_list = []
-
-        all_embs = np.array(all_embs)
-        all_embs = np.concatenate(all_embs, axis=0)
-
-        print(all_embs.shape)
-        joblib.dump(all_embs, self.data_cat_path + name + '_' + mode + '_embs')
+    # def get_embs(self, tokenizer_type, tokenizer_path, name='graph_sample_feature', mode='vector',
+    #              split_abstract=False):
+    #     print(name)
+    #     print(tokenizer_path)
+    #     print('graph mode:', mode)
+    #     # graph = torch.load(self.data_cat_path + 'graph_sample')
+    #     node_trans = json.load(open(self.data_cat_path + 'sample_node_trans.json', 'r'))
+    #     paper_trans = node_trans['paper']
+    #     node_ids = list(paper_trans.values())
+    #     node_ids.sort()
+    #     print(len(node_ids))
+    #     index_trans = dict(zip(paper_trans.values(), paper_trans.keys()))
+    #
+    #     if not split_abstract:
+    #         info_dict = json.load(open(self.data_cat_path + 'sample_info_dict.json', 'r'))
+    #         abstracts = list(map(lambda x: info_dict[index_trans[x]]['abstract'].strip(), node_ids))
+    #         del info_dict
+    #     else:
+    #         abs_dict = json.load(open(self.data_cat_path + 'sample_abstract_dict.json', 'r'))
+    #         abstracts = list(map(lambda x: abs_dict[index_trans[x]].strip(), node_ids))
+    #         del abs_dict
+    #
+    #     feature_list = []
+    #
+    #     self.tokenizer = self.get_tokenizer(tokenizer_type, tokenizer_path)
+    #     self.tokenizer.load_vocab()
+    #     print('bert-whitening embeddings')
+    #     # self.tokenizer = CustomBertTokenizer(max_len=self.max_len, bert_path=tokenizer_path)
+    #     # self.tokenizer.load_vocab()
+    #     print(self.tokenizer.tokenizer)
+    #
+    #     if mode == 'bw':
+    #         bert_model = BertModel.from_pretrained(tokenizer_path, return_dict=True, output_hidden_states=True).to(
+    #             self.device)
+    #     elif mode in ['sbw', 'sbert']:
+    #         bert_model = SentenceTransformer(tokenizer_path)
+    #
+    #     # first get kernel and bias
+    #     # params = {'kernel': 0, 'bias': 0}
+    #     all_embs = []
+    #
+    #     batch_size = 64
+    #     if mode == 'bw':
+    #         count = 0
+    #         temp_tokens, temp_masks, temp_lens = [], [], []
+    #         for abstract in tqdm(abstracts):
+    #             processed_content, seq_len, mask = self.tokenizer.encode(abstract)
+    #             temp_tokens.append(processed_content)
+    #             temp_masks.append(mask)
+    #             temp_lens.append(seq_len)
+    #             count += 1
+    #             if ((count > 0) and (count % batch_size == 0)) | (count == len(abstracts)):
+    #                 tokens = torch.tensor(temp_tokens, dtype=torch.long).to(self.device)
+    #                 masks = torch.tensor(temp_masks, dtype=torch.long).to(self.device)
+    #                 seq_lens = temp_lens
+    #                 output = inputs_to_vec([tokens, masks], bert_model, 'first_last_avg', seq_lens)
+    #                 # print(output.shape)
+    #                 all_embs.append(output)
+    #                 temp_tokens, temp_masks, temp_lens = [], [], []
+    #     elif mode in ['sbw', 'sbert']:
+    #         count = 0
+    #         all_embs = []
+    #         temp_list = []
+    #         for abstract in tqdm(abstracts):
+    #             # print(abstract)
+    #             temp_list.append(abstract)
+    #             count += 1
+    #             if ((count > 0) and (count % batch_size == 0)) | (count == len(abstracts)):
+    #                 output = bert_model.encode(temp_list)
+    #                 # print(output.shape)
+    #                 all_embs.append(output)
+    #                 temp_list = []
+    #
+    #     all_embs = np.array(all_embs)
+    #     all_embs = np.concatenate(all_embs, axis=0)
+    #
+    #     print(all_embs.shape)
+    #     joblib.dump(all_embs, self.data_cat_path + name + '_' + mode + '_embs')
 
     def get_feature_graph(self, tokenizer_type, tokenizer_path, name='graph_sample_feature', mode='vector',
                           split_abstract=False, time_range=(2001, 2015)):
@@ -499,36 +492,29 @@ class DataProcessor:
                     node_embedding = torch.zeros_like(node_embedding)
                 feature_list.append(node_embedding)
 
-        elif mode == 'bert':
-            print('last 2nd avgpool')
-            # self.tokenizer = CustomBertTokenizer(max_len=self.max_len, bert_path=tokenizer_path)
-            # self.tokenizer.load_vocab()
-            print(self.tokenizer.tokenizer)
-            bert_model = BertModel.from_pretrained(tokenizer_path, return_dict=True, output_hidden_states=True).to(
-                self.device)
+        # elif mode == 'bert':
+        #     print('last 2nd avgpool')
+        #     # self.tokenizer = CustomBertTokenizer(max_len=self.max_len, bert_path=tokenizer_path)
+        #     # self.tokenizer.load_vocab()
+        #     print(self.tokenizer.tokenizer)
+        #     bert_model = BertModel.from_pretrained(tokenizer_path, return_dict=True, output_hidden_states=True).to(
+        #         self.device)
+        #
+        #     for abstract in tqdm(abstracts):
+        #         processed_content, seq_len, mask = self.tokenizer.encode(abstract)
+        #         tokens = torch.tensor(processed_content).unsqueeze(dim=0).to(self.device)
+        #         mask = torch.tensor(mask).unsqueeze(dim=0).to(self.device)
+        #         output = bert_model(tokens, attention_mask=mask)
+        #         node_embedding = output['hidden_states'][-2][0, :seq_len].mean(dim=0, keepdim=True).detach().cpu()
+        #         # print(node_embedding.shape)
+        #         feature_list.append(node_embedding)
 
-            for abstract in tqdm(abstracts):
-                processed_content, seq_len, mask = self.tokenizer.encode(abstract)
-                tokens = torch.tensor(processed_content).unsqueeze(dim=0).to(self.device)
-                mask = torch.tensor(mask).unsqueeze(dim=0).to(self.device)
-                output = bert_model(tokens, attention_mask=mask)
-                node_embedding = output['hidden_states'][-2][0, :seq_len].mean(dim=0, keepdim=True).detach().cpu()
-                # print(node_embedding.shape)
-                feature_list.append(node_embedding)
-
-        elif mode == 'sbert':
-            all_embs = joblib.load(self.data_cat_path + name + '_' + mode + '_embs')
-            feature_list = torch.from_numpy(all_embs)
-
-        elif mode.endswith('bw'):
-            all_embs = joblib.load(self.data_cat_path + name + '_' + mode + '_embs')
-            # kernel, bias = compute_kernel_bias([all_embs])
-            # kernel = kernel[:, :300]  # 300 dim
-            #
-            # feature_list = torch.from_numpy(transform_and_normalize(all_embs, kernel, bias).astype(np.float32))
-            # print(feature_list.shape)
-
-            # then get the embs
+        # elif mode == 'sbert':
+        #     all_embs = joblib.load(self.data_cat_path + name + '_' + mode + '_embs')
+        #     feature_list = torch.from_numpy(all_embs)
+        #
+        # elif mode.endswith('bw'):
+        #     all_embs = joblib.load(self.data_cat_path + name + '_' + mode + '_embs')
 
         elif mode == 'token':
             # self.get_tokenizer(tokenizer_type, tokenizer_path)
@@ -554,12 +540,12 @@ class DataProcessor:
             graph.nodes['paper'].data['seq_len'] = torch.cat(seq_lens, dim=0)
             graph.nodes['paper'].data['mask'] = torch.cat(masks, dim=0)
 
-        if mode.endswith('bw'):
-            # graph.nodes['paper'].data['h'] = feature_list
-            print('not here')
-        elif mode == 'sbert':
-            graph.nodes['paper'].data['h'] = feature_list
-        elif mode == 'random':
+        # if mode.endswith('bw'):
+        #     # graph.nodes['paper'].data['h'] = feature_list
+        #     print('not here')
+        # elif mode == 'sbert':
+        #     graph.nodes['paper'].data['h'] = feature_list
+        if mode == 'random':
             paper_count = graph.nodes('paper').shape[0]
             graph.nodes['paper'].data['h'] = torch.randn(paper_count, 300, dtype=torch.float32)
         else:
@@ -595,16 +581,16 @@ class DataProcessor:
             sub_graph = dgl.remove_self_loop(sub_graph, 'is cited by')
             sub_graph = dgl.remove_self_loop(sub_graph, 'cites')
 
-            if mode.endswith('bw'):
-                cur_idx = sub_graph.nodes['paper'].data[dgl.NID]
-                cur_embs = all_embs[cur_idx, :]
-                print(cur_embs.shape)
-                kernel, bias = compute_kernel_bias([cur_embs])
-                kernel = kernel[:, :300]  # 300 dim
-
-                feature_list = torch.from_numpy(transform_and_normalize(cur_embs, kernel, bias).astype(np.float32))
-                print(feature_list.shape)
-                sub_graph.nodes['paper'].data['h'] = feature_list
+            # if mode.endswith('bw'):
+            #     cur_idx = sub_graph.nodes['paper'].data[dgl.NID]
+            #     cur_embs = all_embs[cur_idx, :]
+            #     print(cur_embs.shape)
+            #     kernel, bias = compute_kernel_bias([cur_embs])
+            #     kernel = kernel[:, :300]  # 300 dim
+            #
+            #     feature_list = torch.from_numpy(transform_and_normalize(cur_embs, kernel, bias).astype(np.float32))
+            #     print(feature_list.shape)
+            #     sub_graph.nodes['paper'].data['h'] = feature_list
 
             if mode != 'token':
                 emb_dim = sub_graph.nodes['paper'].data['h'].shape[1]
@@ -1843,39 +1829,9 @@ if __name__ == "__main__":
         make_data(args.data_source, temp_config, seed=args.seed)
     elif args.phase == 'make_data_graph':
         temp_config = configs['default']
-        if args.graph == 'vector':
-            temp_config['tokenizer_type'] = 'glove'
-            temp_config['tokenizer_path'] = './data/glove'
-        elif args.graph == 'bert':
-            temp_config['tokenizer_type'] = 'bert'
-            temp_config['tokenizer_path'] = './bert/scibert/'
-        elif args.graph == 'bw':
-            temp_config['tokenizer_type'] = 'bert'
-            temp_config['tokenizer_path'] = './bert/scibert/'
-        elif args.graph == 'sbert':
-            temp_config['tokenizer_type'] = 'bert'
-            temp_config['tokenizer_path'] = './bert/all-MiniLM-L12-v2/'
-        elif args.graph == 'sbw':
-            temp_config['tokenizer_type'] = 'bert'
-            temp_config['tokenizer_path'] = './bert/all-mpnet-base-v2/'
-        else:
-            temp_config['tokenizer_type'] = 'glove'
-            temp_config['tokenizer_path'] = './data/glove'
+        temp_config['tokenizer_type'] = 'glove'
+        temp_config['tokenizer_path'] = './data/glove'
         make_data(args.data_source, temp_config, seed=args.seed, graph=args.graph)
-    elif args.phase == 'get_embs':
-        temp_config = configs['default']
-        if args.graph == 'bw':
-            temp_config['tokenizer_type'] = 'bert'
-            temp_config['tokenizer_path'] = './bert/scibert/'
-        elif args.graph == 'sbw':
-            temp_config['tokenizer_type'] = 'bert'
-            temp_config['tokenizer_path'] = './bert/all-mpnet-base-v2/'
-        elif args.graph == 'sbert':
-            temp_config['tokenizer_type'] = 'bert'
-            temp_config['tokenizer_path'] = './bert/all-MiniLM-L12-v2/'
-        dataProcessor = DataProcessor(args.data_source, norm=True)
-        dataProcessor.get_embs(temp_config['tokenizer_type'], temp_config['tokenizer_path'],
-                               mode=args.graph, split_abstract=temp_config['split_abstract'])
     elif args.phase == "get_cascade_graph":
         cascadeProcessor = CascadeDataProcessor(args.data_source, norm=True, max_len=10,
                                                 max_time=configs['default']['time_length'])
@@ -1887,11 +1843,6 @@ if __name__ == "__main__":
     elif args.phase == 'get_hn':
         dataProcessor = DataProcessor(args.data_source, norm=True, time=configs['default']['time'])
         show_hn(dataProcessor.data_cat_path, train_time=dataProcessor.time[0])
-
-    # elif args.phase == 'get_node_embed':
-    #     walks = list()
-    #     read_walks_set('train', walks)
-    #     learn_embeddings(walks, opts.dimensions)
 
     end_time = datetime.datetime.now()
     print('{} takes {} seconds'.format(args.phase, (end_time - start_time).seconds))

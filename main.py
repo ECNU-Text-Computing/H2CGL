@@ -512,7 +512,7 @@ if __name__ == '__main__':
     parser.add_argument('--cl_type', default='label_aug_hard_negative', help='the cl type to learn.')
     parser.add_argument('--aug_type', default='cg', help='the aug type to learn.')
     parser.add_argument('--aug_rate', default=0.1, help='the aug type to learn.')
-    parser.add_argument('--encoder_type', default='DGINP', help='the gcn encoder type to learn.')
+    parser.add_argument('--encoder_type', default='CGIN+RGAT', help='the gcn encoder type to learn.')
     parser.add_argument('--gcn_out', default='mean', help='how to get the node emb.')
     parser.add_argument('--n_layers', default=None, help='the layers of gcn.')
     parser.add_argument('--edge_seq', default=None, help='the edge sequences.')

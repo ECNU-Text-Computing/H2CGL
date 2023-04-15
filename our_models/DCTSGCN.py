@@ -82,7 +82,8 @@ class DCTSGCN(CTSGCN):
         if encoder_type == 'GIN':
             # ablation
             encoder_dict = {('paper', 'is in', 'snapshot'): {'cur_type': 'GAT'}}
-        elif encoder_type == 'DGINP':
+        elif encoder_type == 'DGINP' or encoder_type == 'CGIN+RGAT':
+            print('>>>{}<<<'.format(encoder_type))
             # CGIN+RGAT
             encoder_dict = {('paper', 'is in', 'snapshot'): {'cur_type': 'RGAT',
                                                              'snapshot_types': 3,

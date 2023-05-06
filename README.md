@@ -1,5 +1,6 @@
 # H2CGL
-H2CGL: Modeling Dynamics of Citation Network for Impact Prediction
+H2CGL: Modeling Dynamics of Citation Network for Impact Prediction <br>
+https://arxiv.org/abs/2305.01572
 
 ## Requirement
 

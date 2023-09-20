@@ -313,8 +313,10 @@ class CLWrapper(BaseModel):
     def predict(self, content, lengths, masks, ids, graph, times, **kwargs):
         # print(final_out.shape)
         inputs = self.encoder.get_graphs(content, lengths, masks, ids, graph, times)
+        # print(inputs)
         time_out, _ = self.encoder.encode(inputs)
         output = self.encoder.decode(time_out)
+        print(output[0].shape)
         return output
 
     def show(self, content, lengths, masks, ids, graph, times, **kwargs):

@@ -85,7 +85,6 @@ class TSGCN(BaseModel):
             'all_trans_index': dict,
             'all_ego_graphs': ego_graphs
         }
-        直接从每年的graph读而不是读完整数据
         '''
         print(graphs['data'])
         logger = logging.getLogger()

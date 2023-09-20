@@ -310,14 +310,14 @@ def node_drop(graph, prob, ntypes=None, selected_nodes=None):
     # drop nodes according to the citation, so just drop the paper, not including other nodes and the target node
     selected_index = (1 - graph.nodes['paper'].data['is_target']).to(torch.bool)
     if selected_nodes:
-        selected_nodes = selected_nodes['paper']  # 这里输入的是bool
+        selected_nodes = selected_nodes['paper']
         selected_index = selected_index & selected_nodes
 
     count = torch.sum(selected_index).item()
     # print(count)
     if count > 0:
         drop_rate = count * prob
-        cur_p = torch.softmax(graph.nodes['paper'].data['citations'][selected_index].float(), dim=-1).numpy() * drop_rate
+        cur_p = torch.softmax(-graph.nodes['paper'].data['citations'][selected_index].float(), dim=-1).numpy() * drop_rate
         drop_indicator = np.random.rand(count) < cur_p
         drop_nodes = torch.where(selected_index)[0][drop_indicator]
         graph.remove_nodes(drop_nodes, ntype='paper')

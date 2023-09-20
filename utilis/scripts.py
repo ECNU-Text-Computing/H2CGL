@@ -20,7 +20,6 @@ def eval_result(all_true_values, all_predicted_values):
     all_true_values = all_true_values.flatten(order='C')
     # print(all_true_values)
     all_predicted_values = all_predicted_values.flatten(order='C')
-    # 控制不超出上界
     all_predicted_values = np.where(all_predicted_values == np.inf, 1e20, all_predicted_values)
     # print(all_predicted_values)
     mae = mean_absolute_error(all_true_values, all_predicted_values)
@@ -278,26 +277,6 @@ def custom_node_unbatch(g):
             # print(subfeats)
             node_attr_dict[ntype][key] = subfeats
     return node_attr_dict
-
-
-def get_tsne(embs, file_name, indexes=None):
-    perplexity_list = [5, 10, 20, 30, 50]
-    embs = embs.astype(np.float32)
-    embs = torch.from_numpy(embs)
-    embs = F.normalize(embs).numpy()
-    lr = max(embs.shape[0] / 12 / 4, 50)
-    # lr = 1000
-    print('add norm!')
-    # print(lr)
-    # tsne = TSNE(n_components=2, learning_rate=lr, init='random', perplexity=30)
-    for perplexity in perplexity_list:
-        tsne = TSNE(n_components=2, learning_rate=50, perplexity=perplexity, init='pca', verbose=1)
-        result = tsne.fit_transform(embs)
-        print(result.shape)
-        # plt.scatter(x=result[:, 0], y=result[:, 1])
-        # plt.savefig('./imgs/{}.pdf'.format(model_name), bbox_inches='tight')
-        # joblib.dump(result, file_name.format(perplexity))
-        torch.save([indexes, result], file_name.format(perplexity))
 
 def get_label(citation):
     if citation < 10:

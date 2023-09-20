@@ -13,8 +13,8 @@ https://arxiv.org/abs/2305.01572
 
 ## Usage
 Original dataset:
-* PMC(pubmed): https://www.ncbi.nlm.nih.gov/pmc/tools/openftlist/
-* DBLPv13(dblp): https://www.aminer.org/citation
+* PMC (pubmed): https://www.ncbi.nlm.nih.gov/pmc/tools/openftlist/
+* DBLPv13 (dblp): https://www.aminer.org/citation
 
 Download the dealt dataset from https://pan.baidu.com/s/1BkcIUiyMbdn9FR3hLdws1w&pwd=kr7h <br>
 

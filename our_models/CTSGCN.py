@@ -85,6 +85,10 @@ class CTSGCN(BaseModel):
 
         self.norm = None
         self.dn = None
+        if kwargs.get('data_source', None):
+            self.data_source = kwargs['data_source']
+        else:
+            self.data_source = None
         oargs = kwargs.get('oargs', None)
         if oargs:
             if 'bn' in oargs:
@@ -123,10 +127,11 @@ class CTSGCN(BaseModel):
         return graph
 
     def load_single_graph(self, graph, time_emb, emb_dim, graphs, start_time):
-        a = graph.edges['is t_cited by'].data['w'].clone().detach()
-        b = graph.edges['t_cites'].data['w'].clone().detach()
-        graph.edges['is t_cited by'].data['w'] = b
-        graph.edges['t_cites'].data['w'] = a
+        if self.data_source in {'h_pubmed', 'h_dblp'}:
+            a = graph.edges['is t_cited by'].data['w'].clone().detach()
+            b = graph.edges['t_cites'].data['w'].clone().detach()
+            graph.edges['is t_cited by'].data['w'] = b
+            graph.edges['t_cites'].data['w'] = a
         # print(graph.edges(etype='is t_cited by'))
         # print(b)
         if self.max_time_length != self.time_length:
@@ -358,17 +363,27 @@ class CTSGCN(BaseModel):
                 snapshots_cites_adj = get_snapshot_adj(valid_links_dict, len(valid_snapshots))
                 # print(snapshots_cites_adj[0].shape)
                 # print(snapshots_cites_adj[0].indices().numpy().tolist())
-                src, dst = snapshots_cites_adj[0].indices().numpy().tolist()
+                # src, dst = snapshots_cites_adj[0].indices().numpy().tolist()
+                # new_edges = {
+                #     ('snapshot', 't_cites', 'snapshot'): (src, dst),
+                #     ('snapshot', 'is t_cited by', 'snapshot'): (dst, src)
+                # }
+                # new_edata = {
+                #     't_cites': {'w': snapshots_cites_adj[0].values()},
+                #     'is t_cited by': {'w': snapshots_cites_adj[1].values()}
+                # }
+                dst0, src0 = snapshots_cites_adj[0].indices().numpy().tolist()
+                dst1, src1 = snapshots_cites_adj[1].indices().numpy().tolist()
                 new_edges = {
-                    ('snapshot', 't_cites', 'snapshot'): (src, dst),
-                    ('snapshot', 'is t_cited by', 'snapshot'): (dst, src)
+                    ('snapshot', 't_cites', 'snapshot'): (src0, dst0),
+                    ('snapshot', 'is t_cited by', 'snapshot'): (src1, dst1)
                 }
                 new_edata = {
                     't_cites': {'w': snapshots_cites_adj[0].values()},
                     'is t_cited by': {'w': snapshots_cites_adj[1].values()}
                 }
-                print(src, dst)
-                print(snapshots_cites_adj[0].values())
+                # print(src, dst)
+                # print(snapshots_cites_adj[0].values())
                 # print(new_edata['t_cites'].shape)
                 # print(sum([snapshot.nodes('paper').shape[0] for snapshot in snapshots]))
                 # print(batched_snapshots.nodes('paper').shape[0])
@@ -416,8 +431,10 @@ class CTSGCN(BaseModel):
                     single_graph.nodes[ntype].data['target'] = torch.zeros(node_count, dtype=torch.long) + target_id
                     single_graph.nodes[ntype].data['core'] = torch.zeros(node_count, dtype=torch.long) + core_id
         else:
+            # print(combined_graph.nodes['snapshot'].data['time'].device, pub_time.device)
             pub_distance = combined_graph.nodes['snapshot'].data['time'] - pub_time
             combined_graph.nodes['snapshot'].data['type'] = self.get_snapshot_type(pub_distance.squeeze(dim=-1))
+            print(combined_graph.nodes['snapshot'].data)
             combined_graph.nodes['snapshot'].data['batch_idx'] = torch.zeros(pub_distance.shape[0], dtype=torch.long) \
                                                                  + batch_index
             if mask:
@@ -433,6 +450,7 @@ class CTSGCN(BaseModel):
 
     def get_indicators(self, all_graphs, ids, times):
         # print(len(all_graphs))
+        print('get types here!')
         if self.hn and self.training:
             # if self.hn:
             true_len = len(all_graphs) // self.hn
@@ -449,10 +467,12 @@ class CTSGCN(BaseModel):
                     self.get_single_indicator(combined_graph, times[cur_index], ids[i], ids[cur_index], False, cur_index)
 
         else:
+            # print('fuck it', all_graphs)
             for i in range(len(all_graphs)):
                 combined_graph = all_graphs[i]
                 self.get_single_indicator(combined_graph, times[i], ids[i], ids[i], False, i)
 
+        print(all_graphs[0].nodes['snapshot'].data.keys())
         return all_graphs
 
     def get_hn_graphs(self, trans_index, combined_graphs_list, ids, df_hn, raw_embs=None):
@@ -553,6 +573,7 @@ class CTSGCN(BaseModel):
         cur_masks = torch.stack([valid_masks[trans_index[paper.item()]] for paper in ids], dim=0).to(self.device)
 
         # start_time = time.time()
+        print(all_graphs)
         if phase == 'train':
             g1_list = dgl.batch([combined_graph[0] for combined_graph in all_graphs]).to(self.device)
             g2_list = dgl.batch([combined_graph[1] for combined_graph in all_graphs]).to(self.device)
@@ -567,6 +588,7 @@ class CTSGCN(BaseModel):
         else:
             all_graphs = dgl.batch([combined_graph for combined_graph in all_graphs]).to(self.device)
             # return all_graphs
+            print(all_graphs)
             return [all_graphs, ids, cur_masks]
 
     def encode(self, inputs, get_attention=False):
@@ -645,6 +667,7 @@ class CTSGCN(BaseModel):
         inputs = self.get_graphs(content, lengths, masks, ids, graph, times)
         time_out, _ = self.encode(inputs)
         output = self.decode(time_out)
+        # print(output.shape)
         # output = torch.relu(output)
         # print(output)
         return output
@@ -770,15 +793,15 @@ class CTSGCN(BaseModel):
             time_out, _, attn_list = self.encode(inputs, get_attention=True)
             dealt_graphs = self.get_information_graph(inputs, attn_list)
         # dealt_graphs = []
-            return [time_out.cpu().numpy(), dealt_graphs]
+            return [time_out.detach().cpu().numpy(), dealt_graphs]
         elif kwargs.get('return_weight', False):
             time_out, _, attn_list = self.encode(inputs, get_attention=True)
             cgin, rgat = self.get_information_weight(inputs, attn_list)
-            return [time_out.cpu().numpy(), cgin, rgat]
+            return [time_out.detach().cpu().numpy(), cgin, rgat]
         else:
             time_out, _ = self.encode(inputs)
             output = self.decode(time_out)
-            return [time_out.cpu().numpy()]
+            return [time_out.detach().cpu().numpy()]
 
 
 def get_time_emb(all_graphs_dict, time_list=None):

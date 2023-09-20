@@ -211,7 +211,6 @@ class HCLWrapper(CLWrapper):
                         # cur_len = len(z1) if len(z1) > 0 else 1
                         # len_z1s.append(cur_len)
                         # print(s1_index[0].shape[0], cur_len)
-                        # 修改成只对大于等于2的才会计算loss
                         s1_index = torch.where(t1_index & p1_index[paper.item()])
                         s2_index = torch.where(t2_index & p2_index[paper.item()])
                         if s1_index[0].shape[0] >= 2:

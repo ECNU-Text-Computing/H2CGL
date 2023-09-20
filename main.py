@@ -8,7 +8,7 @@ from our_models.FCL import FCLWrapper
 from our_models.DCTSGCN import DCTSGCN
 from our_models.TSGCN import TSGCN
 
-from utilis.scripts import get_configs, setup_seed, get_tsne, get_sampled_index
+from utilis.scripts import get_configs, setup_seed, get_sampled_index
 
 LOAD_JOBLIB = True
 
@@ -22,7 +22,8 @@ def get_model(model_name, config, vectors=None, **kwargs):
                       time_encoder_layers=config['time_encoder_layers'], time_pooling='sum', hop=config['hop'],
                       time_length=config['time_length'], hidden_dim=config['hidden_dim'], out_dim=config['out_dim'],
                       word2vec=vectors, dropout=config['dropout'], graph_type=config['graph_type'],
-                      cut_threshold=config['cut_threshold'], aux_weight=config['aux_weight'], **kwargs)
+                      cut_threshold=config['cut_threshold'], aux_weight=config['aux_weight'],
+                      data_source=config['data_source'], **kwargs)
     elif model_name == 'DCTSGCN':
         # print(config['etypes'], **kwargs)
         model = DCTSGCN(vocab_size=0, embed_dim=config['embed_dim'], num_classes=config['num_classes'], pad_index=0,
@@ -32,7 +33,8 @@ def get_model(model_name, config, vectors=None, **kwargs):
                         edge_sequences=config['edge_sequences'], linear_before_gcn=config['linear_before_gcn'],
                         time_length=config['time_length'], hidden_dim=config['hidden_dim'], out_dim=config['out_dim'],
                         word2vec=vectors, dropout=config['dropout'], graph_type=config['graph_type'],
-                        cut_threshold=config['cut_threshold'], aux_weight=config['aux_weight'], **kwargs)
+                        cut_threshold=config['cut_threshold'], aux_weight=config['aux_weight'],
+                        data_source=config['data_source'], **kwargs)
     # elif model_name == 'DCTSGCNFCL':
     elif model_name == 'H2CGL':
         # print(config['etypes'], **kwargs)
@@ -43,9 +45,12 @@ def get_model(model_name, config, vectors=None, **kwargs):
                           edge_sequences=config['edge_sequences'], linear_before_gcn=config['linear_before_gcn'],
                           time_length=config['time_length'], hidden_dim=config['hidden_dim'], out_dim=config['out_dim'],
                           word2vec=vectors, dropout=config['dropout'], graph_type=config['graph_type'],
-                          cut_threshold=config['cut_threshold'], aux_weight=config['aux_weight'], hn=config['hn'], hn_method=config['hn_method'], **kwargs)
+                          cut_threshold=config['cut_threshold'], aux_weight=config['aux_weight'], hn=config['hn'],
+                          hn_method=config['hn_method'],
+                          data_source=config['data_source'], **kwargs)
         model = FCLWrapper(encoder=encoder, cl_type=config['cl_type'], aug_type=config['aug_type'], tau=config['tau'],
-                           cl_weight=config['cl_weight'], aug_rate=config['aug_rate'], aux_weight=config['aux_weight'])
+                           cl_weight=config['cl_weight'], aug_rate=config['aug_rate'], aux_weight=config['aux_weight'],
+                           data_source=config['data_source'])
     model.to(model.device)
     return model
 
@@ -142,6 +147,7 @@ def test_results(data_source, model_name, config, seed=123, norm=False, log=Fals
                            record_path=record_path, save_path=save_path, graph=dealt_graph_dict,
                            best_metric=config['best_metric'], aux=aux)
 
+
 def show_results(data_source, model_name, config, seed=123, norm=False, log=False, aux=False, show_phase='test',
                  show='weight', **kwargs):
     phases = [show_phase]
@@ -152,49 +158,14 @@ def show_results(data_source, model_name, config, seed=123, norm=False, log=Fals
                            best_metric=config['best_metric'], aux=aux, phase=show_phase, show=show)
 
 
-def selected_results(data_source, model_name, config, seed=123, norm=False, log=False, aux=False, show_phase='test', **kwargs):
+def selected_results(data_source, model_name, config, seed=123, norm=False, log=False, aux=False, show_phase='test',
+                     **kwargs):
     phases = [show_phase]
     dataProcessor, dealt_graph_dict, model, config, save_path, record_path = load_data_and_model(
         data_source, model_name, config, seed=seed, norm=norm, log=log, log_tag='show', phases=phases, **kwargs)
     model.get_show_results(dataloader=dataProcessor.dataloaders[0],
                            record_path=record_path, save_path=save_path, graph=dealt_graph_dict,
                            best_metric=config['best_metric'], aux=aux, phase=show_phase, show='graph')
-
-
-def draw_graphs(data_source, model_name, config, seed=123, norm=False, log=False, aux=False, show_phase='test', **kwargs):
-    if config['type'] == 'normal':
-        dataProcessor = DataProcessor(data_source, max_len=config['max_len'], seed=seed, norm=norm, time=config['time'],
-                                      model_config=config, log=log)
-    elif config['type'] == 'cascade':
-        dataProcessor = CascadeDataProcessor(data_source, max_len=config['max_len'], seed=seed, norm=norm,
-                                             max_time=config['time_length'],
-                                             time=config['time'], structure=config['structure'],
-                                             model_config=config, log=log)
-    print(config['tokenizer_type'])
-    config['model_name'] = model_name
-    dataProcessor.get_tokenizer(config['tokenizer_type'], config['tokenizer_path'])
-
-    record_path = './results/{}/'.format(data_source)
-    save_path = './checkpoints/{}/'.format(data_source)
-
-    config['vocab_size'] = len(dataProcessor.tokenizer.vocab)
-    config['pad_idx'] = dataProcessor.tokenizer.vocab[PAD]
-    model = get_model(model_name, config, dataProcessor.tokenizer.vectors, **kwargs)
-    if aux:
-        if 'aux' not in model.model_name:
-            model.model_name = model.model_name + '_aux'
-            if model.aux_weight != 0.5:
-                model.model_name = model.model_name + '_aw{}'.format(model.aux_weight)
-    print(model.model_name)
-    results = joblib.load(save_path + model.model_name + '_embs.pkl')
-    # sampled_indexes = list(range(len(results[0])))
-    # random.seed(123)
-    # random.shuffle(sampled_indexes)
-    # sampled_indexes = sampled_indexes[:20000]
-    sampled_indexes = get_sampled_index(dataProcessor.get_data())
-    embs = results[-1][sampled_indexes, :]
-    # embs = results[-2]
-    get_tsne(embs, save_path + model.model_name + '_tsne_{}.pkl', sampled_indexes)
 
 
 def get_graphs(model_name, config, model, dataProcessor, graph_dict, force=False, selected=False):
@@ -212,7 +183,6 @@ def get_graphs(model_name, config, model, dataProcessor, graph_dict, force=False
         #     graphs_path = './checkpoints/{}/{}_graphs_{}'.format(dataProcessor.data_source, model_name, graph_type)
         # else:
         #     graphs_path = './checkpoints/{}/{}_graphs'.format(dataProcessor.data_source, model_name)
-        print('因为不需要进行相似节点添加，所以直接去除按照graph_type来进行节点抽取')
         # graphs_path = './checkpoints/{}/{}_graphs_{}'.format(dataProcessor.data_source, model_name, graph_type)
         graphs_path = './checkpoints/{}/{}_graphs'.format(dataProcessor.data_source, model_name)
         # if model_name.endswith('TSGCN'):
@@ -387,6 +357,7 @@ def get_best_values(data_source, metric, ascending=True):
         result_df = result_df.append(record)
     result_df.to_excel(data_path + 'all_{}_best.xlsx'.format(metric))
 
+
 def get_fixed_cl_data(data_source, model_name, config, seed=123, norm=False):
     if config['type'] == 'normal':
         dataProcessor = DataProcessor(data_source, max_len=config['max_len'], seed=seed, norm=norm, time=config['time'],
@@ -400,7 +371,6 @@ def get_fixed_cl_data(data_source, model_name, config, seed=123, norm=False):
 
     record_path = './results/{}/'.format(data_source)
     # save_path = './checkpoints/{}/'.format(data_source)
-
 
     config['vocab_size'] = len(dataProcessor.tokenizer.vocab)
     config['pad_idx'] = dataProcessor.tokenizer.vocab[PAD]
@@ -417,10 +387,7 @@ def get_fixed_cl_data(data_source, model_name, config, seed=123, norm=False):
     #     graphs_path = './checkpoints/{}/{}_graphs'.format(data_source, 'TSGCN')
     print(model_name)
 
-    if model_name == 'CDHTSGCN':
-        print('here')
-        graphs_path = graphs_path.replace(model_name, 'CTSGCN')
-    elif 'HTSGCN' in model_name:
+    if 'HTSGCN' in model_name:
         graphs_path = graphs_path.replace(model_name, 'HTSGCN')
     if 'CTSGCN' in model_name:
         graphs_path = graphs_path.replace(model_name, 'CTSGCN')
@@ -431,7 +398,6 @@ def get_fixed_cl_data(data_source, model_name, config, seed=123, norm=False):
     }}
     dealt_graphs = model.encoder.aug_graphs_plus(dealt_graphs, model.aug_configs, model.aug_methods)
     joblib.dump(dealt_graphs['data']['train'], graphs_path + '_cl_{}_{}.job'.format(model.aug_type, model.aug_rate))
-
 
 
 def get_selected_data(data_source, model_name, config, seed=123, norm=False):
@@ -448,7 +414,6 @@ def get_selected_data(data_source, model_name, config, seed=123, norm=False):
     record_path = './results/{}/'.format(data_source)
     # save_path = './checkpoints/{}/'.format(data_source)
 
-
     config['vocab_size'] = len(dataProcessor.tokenizer.vocab)
     config['pad_idx'] = dataProcessor.tokenizer.vocab[PAD]
     model = get_model(model_name, config, dataProcessor.tokenizer.vectors)
@@ -464,11 +429,6 @@ def get_selected_data(data_source, model_name, config, seed=123, norm=False):
     #     graphs_path = './checkpoints/{}/{}_graphs'.format(data_source, 'TSGCN')
     print(model_name)
 
-    if model_name == 'CDHTSGCN':
-        print('here')
-        graphs_path = graphs_path.replace(model_name, 'CTSGCN')
-    elif 'HTSGCN' in model_name:
-        graphs_path = graphs_path.replace(model_name, 'HTSGCN')
     if 'CTSGCN' in model_name:
         graphs_path = graphs_path.replace(model_name, 'CTSGCN')
 
@@ -489,6 +449,7 @@ def get_selected_data(data_source, model_name, config, seed=123, norm=False):
     # selected_trans_index = dict(zip(selected_ids, range(len(selected_ids))))
     selected_trans_index = dict(zip(true_ids, range(len(true_ids))))
     joblib.dump([selected_graphs_list, selected_trans_index], graphs_path + '_selected.job')
+
 
 if __name__ == '__main__':
     # torch.autograd.set_detect_anomaly(True)
@@ -653,10 +614,7 @@ if __name__ == '__main__':
                      oargs=args.oargs, result=args.show)
     elif args.phase == 'selected_results':
         selected_results(args.data_source, args.model, model_config, args.seed, args.norm, args.log, args.aux,
-                     oargs=args.oargs)
-    elif args.phase == 'draw_graphs':
-        draw_graphs(args.data_source, args.model, model_config, args.seed, args.norm, args.log, args.aux,
-                     oargs=args.oargs)
+                         oargs=args.oargs)
     elif args.phase == 'get_cl_data':
         get_fixed_cl_data(args.data_source, args.model, model_config, args.seed, args.norm)
     elif args.phase == 'get_selected_data':

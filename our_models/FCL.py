@@ -34,7 +34,7 @@ class FCLWrapper(HCLWrapper):
             true_len = s1.shape[0] // sample_num if sample_num else s1.shape[0]
             temp_index_list = []
             for i in range(sample_num):
-                temp_index_list.append(range(true_len * (i + 1)))
+                temp_index_list.append(range(true_len * i, true_len * (i + 1)))
             # cur_index = list(zip(range(true_len), range(true_len, true_len * 2)))
             cur_index = list(zip(*temp_index_list))
             s1 = s1[cur_index, :]

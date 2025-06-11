@@ -17,6 +17,7 @@ Original dataset:
 * DBLPv13 (dblp): https://www.aminer.org/citation
 
 Download the dealt dataset from https://pan.baidu.com/s/1BkcIUiyMbdn9FR3hLdws1w&pwd=kr7h <br>
+Google Drive: https://drive.google.com/drive/folders/1JCY-EgI98rN22gFtq0l7sthA9JuVcD59?usp=sharing <br>
 
 You can get the H2CGL model here https://drive.google.com/file/d/1nJEgQdTenTssbZfjywe6poiOQKYvJpBo/view?usp=sharing
 

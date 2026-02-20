@@ -33,3 +33,16 @@ python main.py --phase H2CGL --data_source h_pubmed/h_dblp --cl_type label_aug_h
 # H2CGL
 python main.py --phase test_results --model H2CGL --data_source h_pubmed/h_dblp --cl_type label_aug_hard_negative --aug_type cg --encoder_type 'CGIN+RGAT' --n_layers 4 --hn 2 --hn_method co_cite
 ```
+### Bibtex
+```bibtex
+@article{he2023h2cgl,
+  title={H2CGL: Modeling dynamics of citation network for impact prediction},
+  author={He, Guoxiu and Xue, Zhikai and Jiang, Zhuoren and Kang, Yangyang and Zhao, Star and Lu, Wei},
+  journal={Information Processing \& Management},
+  volume={60},
+  number={6},
+  pages={103512},
+  year={2023},
+  publisher={Elsevier}
+}
+```
